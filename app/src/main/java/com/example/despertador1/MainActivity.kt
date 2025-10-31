@@ -33,12 +33,12 @@ import androidx.compose.ui.unit.sp
 import com.example.despertador1.ui.theme.Despertador1Theme
 import java.util.*
 
-// La data class no cambia
+// --- CAMBIO IMPORTANTE: folderUri AHORA ES UN STRING ---
 data class AlarmItem(
     val id: Int,
     val hour: Int,
     val minute: Int,
-    val folderUri: Uri
+    val folderUri: String
 )
 
 class MainActivity : ComponentActivity() {
@@ -60,23 +60,19 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AlarmScreen() {
     val context = LocalContext.current
-    // PASO 1: Instanciamos el repositorio
     val alarmRepository = remember { AlarmRepository(context) }
 
-    // PASO 2: La lista ahora se carga desde el repositorio al iniciar
     val alarmList = remember {
         mutableStateListOf<AlarmItem>().apply {
             addAll(alarmRepository.loadAlarms())
         }
     }
 
-    // Estados para la nueva alarma (sin cambios)
     var selectedHour by remember { mutableStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
     var selectedMinute by remember { mutableStateOf(Calendar.getInstance().get(Calendar.MINUTE)) }
     var folderUri by remember { mutableStateOf<Uri?>(null) }
     var folderName by remember { mutableStateOf("Ninguna carpeta seleccionada") }
 
-    // TimePickerDialog (sin cambios)
     val timePickerDialog = TimePickerDialog(
         context,
         { _, hourOfDay, minute ->
@@ -85,7 +81,6 @@ fun AlarmScreen() {
         }, selectedHour, selectedMinute, true
     )
 
-    // openDocumentTreeLauncher (sin cambios)
     val openDocumentTreeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -110,7 +105,6 @@ fun AlarmScreen() {
         Text("Mis Alarmas", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
 
-        // Card para añadir nueva alarma (sin cambios en la UI)
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -134,14 +128,12 @@ fun AlarmScreen() {
                     onClick = {
                         folderUri?.let { uri ->
                             val newAlarmId = System.currentTimeMillis().toInt()
-                            val newAlarm = AlarmItem(newAlarmId, selectedHour, selectedMinute, uri)
+                            // --- CAMBIO IMPORTANTE: CONVERTIMOS EL URI A STRING AL CREAR EL OBJETO ---
+                            val newAlarm = AlarmItem(newAlarmId, selectedHour, selectedMinute, uri.toString())
 
                             setAlarm(context, newAlarm)
                             alarmList.add(newAlarm)
-
-                            // PASO 3: Guardamos la lista actualizada
                             alarmRepository.saveAlarms(alarmList)
-
                             Toast.makeText(context, "Alarma programada", Toast.LENGTH_SHORT).show()
                         } ?: run {
                             Toast.makeText(context, "Selecciona una carpeta de música", Toast.LENGTH_SHORT).show()
@@ -157,7 +149,6 @@ fun AlarmScreen() {
         Spacer(Modifier.height(16.dp))
         Divider()
 
-        // Lista de alarmas (LazyColumn)
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(alarmList, key = { it.id }) { alarm ->
                 AlarmListItem(
@@ -165,10 +156,7 @@ fun AlarmScreen() {
                     onDelete = {
                         cancelAlarm(context, alarm.id)
                         alarmList.remove(alarm)
-
-                        // PASO 4: Guardamos la lista actualizada
                         alarmRepository.saveAlarms(alarmList)
-
                         Toast.makeText(context, "Alarma eliminada", Toast.LENGTH_SHORT).show()
                     }
                 )
@@ -177,7 +165,6 @@ fun AlarmScreen() {
     }
 }
 
-// El resto de composables y funciones no necesitan cambios
 @Composable
 fun AlarmListItem(alarm: AlarmItem, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -201,7 +188,8 @@ fun AlarmListItem(alarm: AlarmItem, onDelete: () -> Unit) {
 fun setAlarm(context: Context, alarm: AlarmItem) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val alarmIntent = Intent(context, AlarmService::class.java).apply {
-        putExtra("folder_uri", alarm.folderUri.toString())
+        // alarm.folderUri ya es un String, así que se pasa directamente
+        putExtra("folder_uri", alarm.folderUri)
     }
     val pendingIntent = PendingIntent.getService(
         context,
@@ -236,4 +224,3 @@ fun cancelAlarm(context: Context, alarmId: Int) {
     )
     alarmManager.cancel(pendingIntent)
 }
-
