@@ -8,7 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Log // <-- IMPORTACIÓN AÑADIDA
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -21,9 +21,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue // <-- IMPORTACIÓN AÑADIDA
-import androidx.compose.runtime.setValue // <-- IMPORTACIÓN AÑADIDA
-import androidx.compose.runtime.mutableStateListOf // <-- IMPORTACIÓN AÑADIDA
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,9 +33,9 @@ import androidx.compose.ui.unit.sp
 import com.example.despertador1.ui.theme.Despertador1Theme
 import java.util.*
 
-// --- NUEVA DATA CLASS para representar una alarma ---
+// La data class no cambia
 data class AlarmItem(
-    val id: Int, // Identificador único para cada alarma
+    val id: Int,
     val hour: Int,
     val minute: Int,
     val folderUri: Uri
@@ -60,14 +60,23 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AlarmScreen() {
     val context = LocalContext.current
+    // PASO 1: Instanciamos el repositorio
+    val alarmRepository = remember { AlarmRepository(context) }
 
-    val alarmList = remember { mutableStateListOf<AlarmItem>() }
+    // PASO 2: La lista ahora se carga desde el repositorio al iniciar
+    val alarmList = remember {
+        mutableStateListOf<AlarmItem>().apply {
+            addAll(alarmRepository.loadAlarms())
+        }
+    }
 
+    // Estados para la nueva alarma (sin cambios)
     var selectedHour by remember { mutableStateOf(Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) }
     var selectedMinute by remember { mutableStateOf(Calendar.getInstance().get(Calendar.MINUTE)) }
     var folderUri by remember { mutableStateOf<Uri?>(null) }
     var folderName by remember { mutableStateOf("Ninguna carpeta seleccionada") }
 
+    // TimePickerDialog (sin cambios)
     val timePickerDialog = TimePickerDialog(
         context,
         { _, hourOfDay, minute ->
@@ -76,6 +85,7 @@ fun AlarmScreen() {
         }, selectedHour, selectedMinute, true
     )
 
+    // openDocumentTreeLauncher (sin cambios)
     val openDocumentTreeLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
@@ -85,28 +95,22 @@ fun AlarmScreen() {
                 val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION
                 context.contentResolver.takePersistableUriPermission(uri, takeFlags)
                 folderName = uri.path?.substringAfterLast(':') ?: "Carpeta seleccionada"
-            } catch (e: SecurityException) { // <-- BLOQUE TRY-CATCH MEJORADO
-                Log.e("AlarmApp", "Error de seguridad al persistir el permiso del URI", e)
-                folderName = "Error de permiso al seleccionar"
-                Toast.makeText(context, "No se pudo obtener permiso para la carpeta.", Toast.LENGTH_LONG).show()
-            } catch (e: IllegalArgumentException) {
-                Log.e("AlarmApp", "Error en el argumento al persistir el permiso del URI", e)
-                folderName = "Error al seleccionar la carpeta"
-                Toast.makeText(context, "El tipo de carpeta seleccionado no es válido.", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Log.e("AlarmApp", "Error al obtener permiso persistente", e)
+                Toast.makeText(context, "No se pudo obtener permiso para la carpeta.", Toast.LENGTH_SHORT).show()
+                folderName = "Error de permiso"
             }
         }
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Mis Alarmas", fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
 
-        // --- SECCIÓN PARA AÑADIR UNA NUEVA ALARMA ---
+        // Card para añadir nueva alarma (sin cambios en la UI)
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -135,6 +139,9 @@ fun AlarmScreen() {
                             setAlarm(context, newAlarm)
                             alarmList.add(newAlarm)
 
+                            // PASO 3: Guardamos la lista actualizada
+                            alarmRepository.saveAlarms(alarmList)
+
                             Toast.makeText(context, "Alarma programada", Toast.LENGTH_SHORT).show()
                         } ?: run {
                             Toast.makeText(context, "Selecciona una carpeta de música", Toast.LENGTH_SHORT).show()
@@ -148,9 +155,9 @@ fun AlarmScreen() {
         }
 
         Spacer(Modifier.height(16.dp))
-        Divider() // <-- ESTA CLASE NECESITABA IMPORTACIÓN
+        Divider()
 
-        // --- LISTA DE ALARMAS PROGRAMADAS (NUEVO) ---
+        // Lista de alarmas (LazyColumn)
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(alarmList, key = { it.id }) { alarm ->
                 AlarmListItem(
@@ -158,6 +165,10 @@ fun AlarmScreen() {
                     onDelete = {
                         cancelAlarm(context, alarm.id)
                         alarmList.remove(alarm)
+
+                        // PASO 4: Guardamos la lista actualizada
+                        alarmRepository.saveAlarms(alarmList)
+
                         Toast.makeText(context, "Alarma eliminada", Toast.LENGTH_SHORT).show()
                     }
                 )
@@ -166,14 +177,10 @@ fun AlarmScreen() {
     }
 }
 
-// --- NUEVO COMPOSABLE para mostrar un item en la lista de alarmas ---
+// El resto de composables y funciones no necesitan cambios
 @Composable
 fun AlarmListItem(alarm: AlarmItem, onDelete: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
+    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -191,58 +198,42 @@ fun AlarmListItem(alarm: AlarmItem, onDelete: () -> Unit) {
     }
 }
 
-
-// --- FUNCIÓN SETALARM ACTUALIZADA para aceptar un AlarmItem ---
 fun setAlarm(context: Context, alarm: AlarmItem) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-
     val alarmIntent = Intent(context, AlarmService::class.java).apply {
         putExtra("folder_uri", alarm.folderUri.toString())
     }
-
     val pendingIntent = PendingIntent.getService(
         context,
         alarm.id,
         alarmIntent,
         PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
     )
-
     val calendar = Calendar.getInstance().apply {
         timeInMillis = System.currentTimeMillis()
         set(Calendar.HOUR_OF_DAY, alarm.hour)
         set(Calendar.MINUTE, alarm.minute)
         set(Calendar.SECOND, 0)
     }
-
     if (calendar.timeInMillis <= System.currentTimeMillis()) {
         calendar.add(Calendar.DAY_OF_YEAR, 1)
     }
-
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-        Toast.makeText(context, "Permiso para alarmas exactas no concedido. La alarma podría no ser precisa.", Toast.LENGTH_LONG).show()
-        // Opcional: Redirigir al usuario a la configuración para que otorgue el permiso.
-        // context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
         alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
     } else {
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            calendar.timeInMillis,
-            pendingIntent
-        )
+        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
     }
 }
 
-// --- FUNCIÓN CANCELALARM ACTUALIZADA para aceptar un ID de alarma ---
 fun cancelAlarm(context: Context, alarmId: Int) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val intent = Intent(context, AlarmService::class.java)
-
     val pendingIntent = PendingIntent.getService(
         context,
         alarmId,
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
     )
-
     alarmManager.cancel(pendingIntent)
 }
+
