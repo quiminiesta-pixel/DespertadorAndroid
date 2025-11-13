@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.example.despertador1"
-    compileSdk = 34 // He ajustado esto a 34, que es una versión más estable que 36 (aún en desarrollo)
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.despertador1"
-        minSdk = 30
-        targetSdk = 34 // Ajustado también a 34
+        minSdk = 26
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -28,11 +28,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8 // Cambiado a 1.8, el estándar recomendado
-        targetCompatibility = JavaVersion.VERSION_1_8 // Cambiado a 1.8
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
     kotlinOptions {
-        jvmTarget = "1.8" // Cambiado a 1.8
+        jvmTarget = "1.8"
     }
     buildFeatures {
         compose = true
@@ -40,12 +40,17 @@ android {
 }
 
 dependencies {
-    // --- LÍNEA AÑADIDA PARA CORREGIR EL ERROR ---
-    implementation("androidx.documentfile:documentfile:1.0.1")
-
+    // Dependencia para el formato de texto JSON
     implementation("com.google.code.gson:gson:2.10.1")
+    // Dependencia para manejar archivos y carpetas
+    implementation("androidx.documentfile:documentfile:1.0.1")
+    // Dependencia para el estilo de notificación multimedia
+    implementation("androidx.media:media:1.7.0")
 
+    // --- ¡¡¡DEPENDENCIA AÑADIDA PARA WearableExtender!!! ---
+    implementation("androidx.wear:wear:1.3.0")
 
+    // Dependencias estándar del proyecto
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
